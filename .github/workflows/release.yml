@@ -42,6 +42,13 @@ jobs:
           Program.cs
       shell: pwsh
     
+    - name: Delete old release if exists
+      run: |
+        gh release delete ${{ github.ref_name }} --yes 2>/dev/null || true
+      shell: pwsh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
     - name: Create Release Package
       run: |
         New-Item -ItemType Directory -Path Release -Force
@@ -54,6 +61,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         generate_release_notes: false
+        make_latest: true
         files: |
           ClipboardImageSaver-${{ github.ref_name }}.zip
           ClipboardImageSaver.exe
