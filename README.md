@@ -46,53 +46,6 @@
 2. 运行 `convert-to-icon.ps1` 转换为 ico
 3. 运行 `build.bat` 重新编译
 
-## 编译
-
-### 要求
-
-- Windows 7 及以上
-- .NET Framework 4.0+（系统自带）
-
-### 编译步骤
-
-```bash
-# 直接运行编译脚本
-build.bat
-```
-
-或使用命令行：
-
-```bash
-csc.exe /target:winexe /out:ClipboardImageSaver.exe /win32icon:icon.ico ^
-    /reference:System.dll /reference:System.Core.dll ^
-    /reference:System.Windows.Forms.dll /reference:System.Drawing.dll ^
-    /reference:Microsoft.CSharp.dll Program.cs
-```
-
-## 文件说明
-
-```
-├── Program.cs                   # 主程序源代码
-├── build.bat                    # 编译脚本
-├── icon.ico                     # 程序图标
-├── source-icon.png              # 图标源文件
-├── convert-to-icon.ps1          # 图标转换脚本
-├── README.md                    # 项目说明
-└── LICENSE                      # MIT 许可证
-```
-
-## 技术栈
-
-- **语言**: C# 5.0
-- **框架**: .NET Framework 4.0
-- **UI**: Windows Forms
-- **体积**: ~9 KB
-
-## 系统要求
-
-- Windows 7 / 8 / 10 / 11
-- .NET Framework 4.0+（系统自带）
-
 ## 开源协议
 
 [MIT License](LICENSE)
@@ -114,11 +67,6 @@ csc.exe /target:winexe /out:ClipboardImageSaver.exe /win32icon:icon.ico ^
 - ✅ 中英文界面
 - ✅ 自动识别文件夹
 - ✅ 系统托盘运行
-
-## 截图
-
-![托盘图标](screenshots/tray.png)
-![快捷键设置](screenshots/hotkey.png)
 
 ---
 
