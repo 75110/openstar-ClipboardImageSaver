@@ -379,32 +379,56 @@ namespace ClipboardImageSaver
 
         private void ShowAbout()
         {
-            string message, title;
-            
+            Form aboutForm = new Form();
+            aboutForm.Text = isChineseUI ? "关于" : "About";
+            aboutForm.Width = 450;
+            aboutForm.Height = 350;
+            aboutForm.StartPosition = FormStartPosition.CenterScreen;
+            aboutForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+            aboutForm.MaximizeBox = false;
+            aboutForm.MinimizeBox = false;
+
+            RichTextBox richTextBox = new RichTextBox();
+            richTextBox.Location = new System.Drawing.Point(10, 10);
+            richTextBox.Width = 410;
+            richTextBox.Height = 280;
+            richTextBox.ReadOnly = true;
+            richTextBox.BorderStyle = BorderStyle.None;
+            richTextBox.DetectUrls = true;
+            aboutForm.Controls.Add(richTextBox);
+
             if (isChineseUI)
             {
-                message = "剪贴板图片保存工具 {{VERSION}}\n\n" +
+                richTextBox.Text = "剪贴板图片保存工具 {{VERSION}}\n\n" +
                     "当前快捷键: " + currentKeyName + "\n\n" +
                     "在任意文件夹窗口按快捷键保存剪贴板图片\n\n" +
                     "图片将保存到当前打开的文件夹\n" +
                     "如果没有打开文件夹，则保存到桌面\n\n" +
                     "右键托盘图标可更改快捷键\n\n" +
-                    "开发者: sevencn.com";
-                title = "关于";
+                    "网站: https://sevencn.com\n" +
+                    "上传到: https://github.com/75110/openstar-ClipboardImageSaver";
             }
             else
             {
-                message = "Clipboard Image Saver {{VERSION}}\n\n" +
+                richTextBox.Text = "Clipboard Image Saver {{VERSION}}\n\n" +
                     "Current hotkey: " + currentKeyName + "\n\n" +
                     "Press the hotkey in any folder to save clipboard image.\n\n" +
                     "Images will be saved to the current active folder.\n" +
                     "If no folder is active, saves to Desktop.\n\n" +
                     "Right-click tray icon to change hotkey.\n\n" +
-                    "Developer: sevencn.com";
-                title = "About";
+                    "Website: https://sevencn.com\n" +
+                    "GitHub: https://github.com/75110/openstar-ClipboardImageSaver";
             }
-            
-            MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            Button closeButton = new Button();
+            closeButton.Text = isChineseUI ? "关闭" : "Close";
+            closeButton.Location = new System.Drawing.Point(190, 300);
+            closeButton.Click += (s, e) => aboutForm.Close();
+            aboutForm.Controls.Add(closeButton);
+
+            richTextBox.LinkClicked += (s, e) => System.Diagnostics.Process.Start(e.LinkText);
+
+            aboutForm.ShowDialog();
         }
 
         private void Exit()
