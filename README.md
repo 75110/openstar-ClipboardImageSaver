@@ -22,7 +22,7 @@
 1. **启动程序**：双击 `ClipboardImageSaver.exe`
 2. **截图或复制图片**
 3. **打开目标文件夹**
-4. **按快捷键**（默认 Ctrl+Alt+NumPad1）保存图片
+4. **按快捷键**（默认 Ctrl+S）保存图片
 
 图片会自动保存到当前文件夹，文件名格式：`image_yyyyMMdd_HHmmss.png`
 
