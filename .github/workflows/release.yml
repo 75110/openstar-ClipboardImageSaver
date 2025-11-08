@@ -20,9 +20,17 @@ jobs:
       run: |
         echo "Using system .NET Framework"
     
+    - name: Inject Version
+      run: |
+        $version = "${{ github.ref_name }}"
+        $content = Get-Content Program.cs -Raw
+        $content = $content -replace '{{VERSION}}', $version
+        Set-Content Program.cs $content
+      shell: pwsh
+    
     - name: Build
       run: |
-        $cscPath = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+        $cscPath = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe"
         & $cscPath /target:winexe `
           /out:ClipboardImageSaver.exe `
           /win32icon:icon.ico `

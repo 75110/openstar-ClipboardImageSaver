@@ -383,7 +383,7 @@ namespace ClipboardImageSaver
             
             if (isChineseUI)
             {
-                message = "剪贴板图片保存工具 v1.0.0\\n\\n" +
+                message = "剪贴板图片保存工具 {{VERSION}}\\n\\n" +
                     "当前快捷键: " + currentKeyName + "\\n\\n" +
                     "在任意文件夹窗口按快捷键保存剪贴板图片\\n\\n" +
                     "图片将保存到当前打开的文件夹\\n" +
@@ -394,7 +394,7 @@ namespace ClipboardImageSaver
             }
             else
             {
-                message = "Clipboard Image Saver v1.0.0\\n\\n" +
+                message = "Clipboard Image Saver {{VERSION}}\\n\\n" +
                     "Current hotkey: " + currentKeyName + "\\n\\n" +
                     "Press the hotkey in any folder to save clipboard image.\\n\\n" +
                     "Images will be saved to the current active folder.\\n" +
