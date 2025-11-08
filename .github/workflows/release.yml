@@ -44,8 +44,8 @@ jobs:
     
     - name: Delete old release if exists
       run: |
-        gh release delete ${{ github.ref_name }} --yes -ErrorAction SilentlyContinue || $true
-      shell: pwsh
+        gh release delete ${{ github.ref_name }} --yes 2>$null || $true
+      shell: bash
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
