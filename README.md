@@ -107,7 +107,7 @@ csc.exe /target:winexe /out:ClipboardImageSaver.exe /win32icon:icon.ico ^
 
 ## 更新日志
 
-### v1.0 (2025-11-08)
+### v1.3 (2025-11-08)
 
 - ✅ 首次发布
 - ✅ 自定义快捷键
