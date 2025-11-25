@@ -45,6 +45,12 @@ namespace ClipboardImageSaver
         [DllImport("shell32.dll")]
         private static extern void ILFree(IntPtr pidl);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool AddClipboardFormatListener(IntPtr hwnd);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
+
         private const int HOTKEY_ID = 1;
         private const uint MOD_CONTROL = 0x0002;
         private const uint MOD_SHIFT = 0x0004;
@@ -57,6 +63,9 @@ namespace ClipboardImageSaver
         
         // Language setting
         private bool isChineseUI = true;
+
+        private bool autoMode = false;
+        private string autoSaveDir = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
         private NotifyIcon trayIcon;
         private HotkeyMessageWindow messageWindow;
@@ -82,6 +91,11 @@ namespace ClipboardImageSaver
 
             // Create system tray icon
             InitializeTrayIcon();
+
+            if (autoMode)
+            {
+                AddClipboardFormatListener(messageWindow.Handle);
+            }
         }
 
         private void InitializeTrayIcon()
@@ -99,6 +113,39 @@ namespace ClipboardImageSaver
         public void OnHotKeyPressed()
         {
             SaveClipboardImage();
+        }
+
+        public void OnClipboardChanged()
+        {
+            if (autoMode)
+            {
+                try
+                {
+                    if (Clipboard.ContainsImage())
+                    {
+                        Image image = Clipboard.GetImage();
+                        Directory.CreateDirectory(autoSaveDir);
+                        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                        string filename = Path.Combine(autoSaveDir, "image_" + timestamp + ".png");
+                        image.Save(filename, ImageFormat.Png);
+                        trayIcon.ShowBalloonTip(
+                            2000,
+                            isChineseUI ? "图片已自动保存" : "Image Auto Saved",
+                            (isChineseUI ? "保存到:\n" : "Saved to:\n") + autoSaveDir + "\n" + Path.GetFileName(filename),
+                            ToolTipIcon.Info
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        (isChineseUI ? "自动保存失败:\n" : "Auto save failed:\n") + ex.Message,
+                        isChineseUI ? "错误" : "Error",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error
+                    );
+                }
+            }
         }
 
         private string GetCurrentExplorerPath()
@@ -201,6 +248,8 @@ namespace ClipboardImageSaver
             if (isChineseUI)
             {
                 contextMenu.Items.Add("更改快捷键...", null, (s, e) => ChangeHotkey());
+                contextMenu.Items.Add("设置自动保存路径...", null, (s, e) => ChooseAutoSaveDir());
+                contextMenu.Items.Add(autoMode ? "切换为手动模式" : "切换为自动模式", null, (s, e) => ToggleMode());
                 contextMenu.Items.Add("关于", null, (s, e) => ShowAbout());
                 contextMenu.Items.Add(new ToolStripSeparator());
                 contextMenu.Items.Add("切换到英文", null, (s, e) => ToggleLanguage());
@@ -210,6 +259,8 @@ namespace ClipboardImageSaver
             else
             {
                 contextMenu.Items.Add("Change Hotkey...", null, (s, e) => ChangeHotkey());
+                contextMenu.Items.Add("Set Auto Save Folder...", null, (s, e) => ChooseAutoSaveDir());
+                contextMenu.Items.Add(autoMode ? "Switch to Manual Mode" : "Switch to Auto Mode", null, (s, e) => ToggleMode());
                 contextMenu.Items.Add("About", null, (s, e) => ShowAbout());
                 contextMenu.Items.Add(new ToolStripSeparator());
                 contextMenu.Items.Add("Switch to Chinese", null, (s, e) => ToggleLanguage());
@@ -251,6 +302,14 @@ namespace ClipboardImageSaver
                     {
                         isChineseUI = lines[3] == "zh";
                     }
+                    if (lines.Length >= 5)
+                    {
+                        autoMode = lines[4] == "auto";
+                    }
+                    if (lines.Length >= 6)
+                    {
+                        autoSaveDir = lines[5];
+                    }
                 }
             }
             catch { }
@@ -271,7 +330,9 @@ namespace ClipboardImageSaver
                     currentModifiers.ToString(),
                     currentKey.ToString(),
                     currentKeyName,
-                    isChineseUI ? "zh" : "en"
+                    isChineseUI ? "zh" : "en",
+                    autoMode ? "auto" : "manual",
+                    autoSaveDir
                 });
             }
             catch { }
@@ -434,6 +495,7 @@ namespace ClipboardImageSaver
         private void Exit()
         {
             UnregisterHotKey(messageWindow.Handle, HOTKEY_ID);
+            RemoveClipboardFormatListener(messageWindow.Handle);
             trayIcon.Visible = false;
             messageWindow.DestroyHandle();
             Application.Exit();
@@ -443,6 +505,7 @@ namespace ClipboardImageSaver
         private class HotkeyMessageWindow : NativeWindow
         {
             private const int WM_HOTKEY = 0x0312;
+            private const int WM_CLIPBOARDUPDATE = 0x031D;
             private ClipboardImageSaverApp app;
 
             public HotkeyMessageWindow(ClipboardImageSaverApp app)
@@ -457,7 +520,55 @@ namespace ClipboardImageSaver
                 {
                     app.OnHotKeyPressed();
                 }
+                else if (m.Msg == WM_CLIPBOARDUPDATE)
+                {
+                    app.OnClipboardChanged();
+                }
                 base.WndProc(ref m);
+            }
+        }
+
+        private void ToggleMode()
+        {
+            autoMode = !autoMode;
+            if (autoMode)
+            {
+                AddClipboardFormatListener(messageWindow.Handle);
+            }
+            else
+            {
+                RemoveClipboardFormatListener(messageWindow.Handle);
+            }
+            SaveSettings();
+            UpdateContextMenu();
+            UpdateTrayText();
+            trayIcon.ShowBalloonTip(
+                1500,
+                isChineseUI ? "模式已切换" : "Mode Switched",
+                isChineseUI ? (autoMode ? "当前为自动模式" : "当前为手动模式") : (autoMode ? "Auto mode enabled" : "Manual mode enabled"),
+                ToolTipIcon.Info
+            );
+        }
+
+        private void ChooseAutoSaveDir()
+        {
+            using (var dialog = new FolderBrowserDialog())
+            {
+                dialog.Description = isChineseUI ? "选择自动保存路径" : "Choose auto save folder";
+                dialog.SelectedPath = autoSaveDir;
+                var result = dialog.ShowDialog();
+                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
+                {
+                    autoSaveDir = dialog.SelectedPath;
+                    SaveSettings();
+                    UpdateContextMenu();
+                    trayIcon.ShowBalloonTip(
+                        1500,
+                        isChineseUI ? "已设置自动保存路径" : "Auto save folder set",
+                        dialog.SelectedPath,
+                        ToolTipIcon.Info
+                    );
+                }
             }
         }
     }
