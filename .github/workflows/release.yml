@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   build:
@@ -14,7 +15,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Setup .NET Framework
       run: |
@@ -30,7 +31,28 @@ jobs:
     
     - name: Build
       run: |
-        $cscPath = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe"
+        # Try to find .NET Framework compiler with fallback
+        $possiblePaths = @(
+          "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe",
+          "C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\csc.exe",
+          "C:\\Windows\\Microsoft.NET\\Framework64\\v4.8.30319\\csc.exe",
+          "C:\\Windows\\Microsoft.NET\\Framework\\v4.8.30319\\csc.exe"
+        )
+        
+        $cscPath = $null
+        foreach ($path in $possiblePaths) {
+          if (Test-Path $path) {
+            $cscPath = $path
+            break
+          }
+        }
+        
+        if (-not $cscPath) {
+          Write-Host "Could not find .NET Framework compiler"
+          exit 1
+        }
+        
+        Write-Host "Using compiler: $cscPath"
         & $cscPath /target:winexe `
           /out:ClipboardImageSaver.exe `
           /win32icon:icon.ico `
