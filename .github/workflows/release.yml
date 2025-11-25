@@ -75,7 +75,25 @@ jobs:
       run: |
         New-Item -ItemType Directory -Path Release -Force
         Copy-Item ClipboardImageSaver.exe Release/
-        Copy-Item RELEASE-README.md Release/README.md -ErrorAction SilentlyContinue
+        # 尝试复制 RELEASE-README.md（如果存在）
+        if (Test-Path "RELEASE-README.md") {
+          Copy-Item RELEASE-README.md Release/README.md
+          Write-Host "RELEASE-README.md 已复制到发布包"
+        } else {
+          Write-Host "RELEASE-README.md 不存在，跳过复制"
+          # 创建一个简单的 README
+          Set-Content -Path "Release/README.md" -Value @"
+# Clipboard Image Saver - 剪贴板图片保存工具
+
+轻量级 Windows 图片粘贴工具，体积仅 9KB，开源免费
+
+## 使用方法
+1. 双击运行 `ClipboardImageSaver.exe`
+2. 右键托盘图标配置快捷键
+
+**网站**: [sevencn.com](https://sevencn.com)
+"@
+        }
         Compress-Archive -Path Release/* -DestinationPath ClipboardImageSaver-${{ github.ref_name }}.zip
       shell: pwsh
     
