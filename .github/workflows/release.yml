@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+      - master
   workflow_dispatch:
     inputs:
       version:
@@ -31,10 +34,16 @@ jobs:
       run: |
         $manual = "${{ inputs.version }}"
         $ref = "${{ github.ref_name }}"
-        if ([string]::IsNullOrWhiteSpace($manual)) { $version = $ref } else { $version = $manual }
+        $sha = "${{ github.sha }}"
+        $shortSha = $sha.Substring(0,7)
+        $refFull = $env:GITHUB_REF
+        if ([string]::IsNullOrWhiteSpace($manual)) {
+          if ($refFull -like 'refs/tags/*') { $version = $ref } else { $version = "dev-$ref-$shortSha" }
+        } else { $version = $manual }
         $content = Get-Content Program.cs -Raw
         $content = $content -replace '{{VERSION}}', $version
         Set-Content Program.cs $content
+        Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$version"
       shell: pwsh
     
     - name: Build
@@ -82,9 +91,6 @@ jobs:
     
     - name: Create Release Package
       run: |
-        $manual = "${{ inputs.version }}"
-        $ref = "${{ github.ref_name }}"
-        if ([string]::IsNullOrWhiteSpace($manual)) { $version = $ref } else { $version = $manual }
         New-Item -ItemType Directory -Path Release -Force
         Copy-Item ClipboardImageSaver.exe Release/
         if (Test-Path "RELEASE-README.md") {
@@ -103,8 +109,16 @@ jobs:
           )
           Set-Content -Path "Release/README.md" -Value ($lines -join [Environment]::NewLine) -Encoding UTF8
         }
-        Compress-Archive -Path Release/* -DestinationPath "ClipboardImageSaver-$version.zip"
+        Compress-Archive -Path Release/* -DestinationPath "ClipboardImageSaver-$($env:VERSION).zip"
       shell: pwsh
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ClipboardImageSaver-${{ env.VERSION }}
+        path: |
+          ClipboardImageSaver.exe
+          ClipboardImageSaver-${{ env.VERSION }}.zip
     
     - name: Create GitHub Release
       if: startsWith(github.ref, 'refs/tags/')
