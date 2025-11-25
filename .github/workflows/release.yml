@@ -82,7 +82,7 @@ jobs:
         } else {
           Write-Host "RELEASE-README.md 不存在，跳过复制"
           # 创建一个简单的 README
-          Set-Content -Path "Release/README.md" -Value @"
+          $readmeContent = @"
 # Clipboard Image Saver - 剪贴板图片保存工具
 
 轻量级 Windows 图片粘贴工具，体积仅 9KB，开源免费
@@ -93,6 +93,7 @@ jobs:
 
 **网站**: [sevencn.com](https://sevencn.com)
 "@
+          Set-Content -Path "Release/README.md" -Value $readmeContent
         }
         Compress-Archive -Path Release/* -DestinationPath ClipboardImageSaver-${{ github.ref_name }}.zip
       shell: pwsh
