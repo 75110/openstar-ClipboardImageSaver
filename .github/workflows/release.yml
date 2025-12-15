@@ -49,6 +49,10 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
+    - name: Restore NuGet packages
+      run: dotnet restore
+      shell: pwsh
+
     - name: Build with MSBuild
       run: |
         msbuild ClipboardImageSaver.csproj /p:Configuration=Release /p:Platform=AnyCPU
@@ -90,10 +94,10 @@ jobs:
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ClipboardImageSaver-${{ env.VERSION }}
+        name: ClipboardImageSaver-${{ env:VERSION }}
         path: |
           ClipboardImageSaver.exe
-          ClipboardImageSaver-${{ env.VERSION }}.zip
+          ClipboardImageSaver-${{ env:VERSION }}.zip
     
     - name: Create GitHub Release
       if: startsWith(github.ref, 'refs/tags/')
