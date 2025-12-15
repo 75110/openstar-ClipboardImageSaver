@@ -46,39 +46,14 @@ jobs:
         Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$version"
       shell: pwsh
     
-    - name: Build
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Build with MSBuild
       run: |
-        # Try to find .NET Framework compiler with fallback
-        $possiblePaths = @(
-          "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe",
-          "C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\csc.exe",
-          "C:\\Windows\\Microsoft.NET\\Framework64\\v4.8.30319\\csc.exe",
-          "C:\\Windows\\Microsoft.NET\\Framework\\v4.8.30319\\csc.exe"
-        )
-        
-        $cscPath = $null
-        foreach ($path in $possiblePaths) {
-          if (Test-Path $path) {
-            $cscPath = $path
-            break
-          }
-        }
-        
-        if (-not $cscPath) {
-          Write-Host "Could not find .NET Framework compiler"
-          exit 1
-        }
-        
-        Write-Host "Using compiler: $cscPath"
-        & $cscPath /target:winexe `
-          /out:ClipboardImageSaver.exe `
-          /win32icon:icon.ico `
-          /reference:System.dll `
-          /reference:System.Core.dll `
-          /reference:System.Windows.Forms.dll `
-          /reference:System.Drawing.dll `
-          /reference:Microsoft.CSharp.dll `
-          Program.cs
+        msbuild ClipboardImageSaver.csproj /p:Configuration=Release /p:Platform=AnyCPU
+        # After building, the exe will be in bin/Release/net472/
+        Copy-Item -Path "bin/Release/net472/ClipboardImageSaver.exe" -Destination "ClipboardImageSaver.exe"
       shell: pwsh
     
     - name: Delete old release if exists
