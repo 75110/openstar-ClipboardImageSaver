@@ -1,6 +1,6 @@
 # Clipboard Image Saver - 剪贴板图片保存工具
 
-> 轻量级 Windows 图片粘贴工具，体积仅 9KB，开源免费
+> 轻量级 Windows 图片粘贴工具，体积仅 50KB，开源免费
 
 **无需安装，解压即用！**
 
@@ -34,10 +34,6 @@
 - ✅ **超轻量**：体积仅 50KB
 - ✅ **免安装**：绿色软件，即开即用
 
-## 📂 文件命名
-
-图片保存格式：`image_yyyyMMdd_HHmmss.png`
-- 例如：`image_20251108_143052.png`
 ## 📞 支持与反馈
 
 - **网站**: [sevencn.com](https://sevencn.com)
@@ -47,7 +43,5 @@
 ## 📄 开源协议
 
 本项目采用 MIT 协议开源，详情请查看 [LICENSE](LICENSE) 文件。
-
----
 
 ⭐ **如果觉得有用，请给个 Star！**
