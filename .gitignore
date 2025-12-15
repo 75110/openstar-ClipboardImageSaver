@@ -1,0 +1,18 @@
+# Visual Studio specific
+.vs/
+*.suo
+*.user
+
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Log files
+log.txt
+*.log
+
+# Rider specific
+.idea/
+
+# Other
+Thumbs.db

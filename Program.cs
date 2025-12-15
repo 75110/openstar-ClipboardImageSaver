@@ -22,14 +22,12 @@ namespace ClipboardImageSaver
 
     class ClipboardImageSaverApp : ApplicationContext
     {
-        // Win32 API for global hotkey
         [DllImport("user32.dll")]
         private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
 
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
-        // Win32 API for getting foreground window and path
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
 
@@ -56,14 +54,11 @@ namespace ClipboardImageSaver
         private const uint MOD_SHIFT = 0x0004;
         private const uint MOD_ALT = 0x0001;
         
-        // Current hotkey settings
-        private uint currentModifiers = 0x0002;  // Default: Ctrl
-        private uint currentKey = 0x53;  // Default: S
+        private uint currentModifiers = 0x0002;
+        private uint currentKey = 0x53;
         private string currentKeyName = "Ctrl+S";
         
-        // Language setting
         private bool isChineseUI = true;
-
         private bool autoMode = false;
         private string autoSaveDir = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
@@ -72,26 +67,13 @@ namespace ClipboardImageSaver
 
         public ClipboardImageSaverApp()
         {
-            // Create message window for hotkey
             messageWindow = new HotkeyMessageWindow(this);
-
-            // Load saved settings
             LoadSettings();
-
-            // Register hotkey
             if (!RegisterHotKey(messageWindow.Handle, HOTKEY_ID, currentModifiers, currentKey))
             {
-                MessageBox.Show(
-                    "Failed to register hotkey " + currentKeyName + ".\nIt may be already in use by another application.",
-                    "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error
-                );
+                 // No message box on startup failure to keep it silent
             }
-
-            // Create system tray icon
             InitializeTrayIcon();
-
             if (autoMode)
             {
                 AddClipboardFormatListener(messageWindow.Handle);
@@ -101,10 +83,11 @@ namespace ClipboardImageSaver
         private void InitializeTrayIcon()
         {
             trayIcon = new NotifyIcon();
-            
-            // Use application's embedded icon
-            trayIcon.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-            
+            try
+            {
+                trayIcon.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            }
+            catch {}
             UpdateTrayText();
             UpdateContextMenu();
             trayIcon.Visible = true;
@@ -124,26 +107,17 @@ namespace ClipboardImageSaver
                     if (Clipboard.ContainsImage())
                     {
                         Image image = Clipboard.GetImage();
+                        if (image == null) return; // If GetImage returns null, nothing to save.
                         Directory.CreateDirectory(autoSaveDir);
                         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                         string filename = Path.Combine(autoSaveDir, "image_" + timestamp + ".png");
                         image.Save(filename, ImageFormat.Png);
-                        trayIcon.ShowBalloonTip(
-                            2000,
-                            isChineseUI ? "图片已自动保存" : "Image Auto Saved",
-                            (isChineseUI ? "保存到:\n" : "Saved to:\n") + autoSaveDir + "\n" + Path.GetFileName(filename),
-                            ToolTipIcon.Info
-                        );
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(
-                        (isChineseUI ? "自动保存失败:\n" : "Auto save failed:\n") + ex.Message,
-                        isChineseUI ? "错误" : "Error",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error
-                    );
+                    string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+                    File.AppendAllText(logPath, DateTime.Now.ToString() + " [OnClipboardChanged]\n" + ex.ToString() + "\n\n");
                 }
             }
         }
@@ -153,28 +127,20 @@ namespace ClipboardImageSaver
             try
             {
                 IntPtr hwnd = GetForegroundWindow();
-                StringBuilder windowTitle = new StringBuilder(256);
-                GetWindowText(hwnd, windowTitle, 256);
-                string title = windowTitle.ToString();
-
                 uint processId;
                 GetWindowThreadProcessId(hwnd, out processId);
-
-                // Check if it's explorer window
                 var process = System.Diagnostics.Process.GetProcessById((int)processId);
                 if (process.ProcessName.ToLower() == "explorer")
                 {
-                    // Try to use SHDocVw
                     Type shellWindowsType = Type.GetTypeFromProgID("Shell.Application");
                     if (shellWindowsType != null)
                     {
                         dynamic shellWindows = Activator.CreateInstance(shellWindowsType);
                         dynamic windows = shellWindows.Windows();
-                        
                         for (int i = 0; i < windows.Count; i++)
                         {
                             dynamic window = windows.Item(i);
-                            if (window.HWND == (int)hwnd)
+                            if (window != null && window.HWND == (int)hwnd)
                             {
                                 string path = window.LocationURL;
                                 if (!string.IsNullOrEmpty(path) && path.StartsWith("file:///"))
@@ -188,9 +154,11 @@ namespace ClipboardImageSaver
                     }
                 }
             }
-            catch { }
-
-            // Fallback to desktop
+            catch (Exception ex)
+            {
+                string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+                File.AppendAllText(logPath, DateTime.Now.ToString() + " [GetCurrentExplorerPath]\n" + ex.ToString() + "\n\n");
+            }
             return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         }
 
@@ -198,34 +166,19 @@ namespace ClipboardImageSaver
         {
             try
             {
-                // Only process if clipboard contains an image
                 if (Clipboard.ContainsImage())
                 {
                     Image image = Clipboard.GetImage();
                     string targetPath = GetCurrentExplorerPath();
                     string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                     string filename = Path.Combine(targetPath, "image_" + timestamp + ".png");
-
                     image.Save(filename, ImageFormat.Png);
-
-                    // Show notification
-                    trayIcon.ShowBalloonTip(
-                        2000,
-                        isChineseUI ? "图片已保存" : "Image Saved",
-                        (isChineseUI ? "保存到:\n" : "Saved to:\n") + targetPath + "\n" + Path.GetFileName(filename),
-                        ToolTipIcon.Info
-                    );
                 }
-                // If no image, do nothing (let system handle normal paste)
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    (isChineseUI ? "保存失败:\n" : "Failed to save image:\n") + ex.Message,
-                    isChineseUI ? "错误" : "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error
-                );
+                string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+                File.AppendAllText(logPath, DateTime.Now.ToString() + " [SaveClipboardImage]\n" + ex.ToString() + "\n\n");
             }
         }
 
@@ -244,7 +197,6 @@ namespace ClipboardImageSaver
         private void UpdateContextMenu()
         {
             var contextMenu = new ContextMenuStrip();
-            
             if (isChineseUI)
             {
                 contextMenu.Items.Add("更改快捷键...", null, (s, e) => ChangeHotkey());
@@ -267,7 +219,6 @@ namespace ClipboardImageSaver
                 contextMenu.Items.Add(new ToolStripSeparator());
                 contextMenu.Items.Add("Exit", null, (s, e) => Exit());
             }
-
             trayIcon.ContextMenuStrip = contextMenu;
         }
 
@@ -283,12 +234,7 @@ namespace ClipboardImageSaver
         {
             try
             {
-                string configPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ClipboardImageSaver",
-                    "config.txt"
-                );
-                
+                string configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ClipboardImageSaver", "config.txt");
                 if (File.Exists(configPath))
                 {
                     string[] lines = File.ReadAllLines(configPath);
@@ -298,143 +244,94 @@ namespace ClipboardImageSaver
                         currentKey = uint.Parse(lines[1]);
                         currentKeyName = lines[2];
                     }
-                    if (lines.Length >= 4)
-                    {
-                        isChineseUI = lines[3] == "zh";
-                    }
-                    if (lines.Length >= 5)
-                    {
-                        autoMode = lines[4] == "auto";
-                    }
-                    if (lines.Length >= 6)
-                    {
-                        autoSaveDir = lines[5];
-                    }
+                    if (lines.Length >= 4) { isChineseUI = lines[3] == "zh"; }
+                    if (lines.Length >= 5) { autoMode = lines[4] == "auto"; }
+                    if (lines.Length >= 6) { autoSaveDir = lines[5]; }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+                File.AppendAllText(logPath, DateTime.Now.ToString() + " [LoadSettings]\n" + ex.ToString() + "\n\n");
+            }
         }
 
         private void SaveSettings()
         {
             try
             {
-                string configDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ClipboardImageSaver"
-                );
+                string configDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ClipboardImageSaver");
                 Directory.CreateDirectory(configDir);
-                
                 string configPath = Path.Combine(configDir, "config.txt");
-                File.WriteAllLines(configPath, new string[] {
-                    currentModifiers.ToString(),
-                    currentKey.ToString(),
-                    currentKeyName,
-                    isChineseUI ? "zh" : "en",
-                    autoMode ? "auto" : "manual",
-                    autoSaveDir
-                });
+                File.WriteAllLines(configPath, new string[] { currentModifiers.ToString(), currentKey.ToString(), currentKeyName, isChineseUI ? "zh" : "en", autoMode ? "auto" : "manual", autoSaveDir });
             }
-            catch { }
+            catch (Exception ex)
+            {
+                string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+                File.AppendAllText(logPath, DateTime.Now.ToString() + " [SaveSettings]\n" + ex.ToString() + "\n\n");
+            }
         }
 
         private void ChangeHotkey()
         {
             Form hotkeyForm = new Form();
             hotkeyForm.Text = isChineseUI ? "更改快捷键" : "Change Hotkey";
-            hotkeyForm.Width = 350;
-            hotkeyForm.Height = 200;
+            hotkeyForm.Width = 350; hotkeyForm.Height = 200;
             hotkeyForm.StartPosition = FormStartPosition.CenterScreen;
             hotkeyForm.FormBorderStyle = FormBorderStyle.FixedDialog;
-            hotkeyForm.MaximizeBox = false;
-            hotkeyForm.MinimizeBox = false;
-
+            hotkeyForm.MaximizeBox = false; hotkeyForm.MinimizeBox = false;
             Label label = new Label();
-            label.Text = isChineseUI 
-                ? "当前快捷键: " + currentKeyName + "\n\n按下新的快捷键组合:"
-                : "Current: " + currentKeyName + "\n\nPress new hotkey combination:";
-            label.Location = new System.Drawing.Point(20, 20);
-            label.AutoSize = true;
+            label.Text = isChineseUI ? "当前快捷键: " + currentKeyName + "\n\n按下新的快捷键组合:" : "Current: " + currentKeyName + "\n\nPress new hotkey combination:";
+            label.Location = new System.Drawing.Point(20, 20); label.AutoSize = true;
             hotkeyForm.Controls.Add(label);
-
             TextBox textBox = new TextBox();
-            textBox.Location = new System.Drawing.Point(20, 70);
-            textBox.Width = 290;
-            textBox.ReadOnly = true;
+            textBox.Location = new System.Drawing.Point(20, 70); textBox.Width = 290; textBox.ReadOnly = true;
             hotkeyForm.Controls.Add(textBox);
-
-            uint newModifiers = 0;
-            uint newKey = 0;
-            string newKeyName = "";
-
+            uint newModifiers = 0; uint newKey = 0; string newKeyName = "";
             textBox.KeyDown += (s, e) => {
                 newModifiers = 0;
                 if (e.Control) newModifiers |= MOD_CONTROL;
                 if (e.Shift) newModifiers |= MOD_SHIFT;
                 if (e.Alt) newModifiers |= MOD_ALT;
-
-                if (e.KeyCode != Keys.ControlKey && e.KeyCode != Keys.ShiftKey && 
-                    e.KeyCode != Keys.Menu && e.KeyCode != Keys.LWin && e.KeyCode != Keys.RWin)
+                if (e.KeyCode != Keys.ControlKey && e.KeyCode != Keys.ShiftKey && e.KeyCode != Keys.Menu && e.KeyCode != Keys.LWin && e.KeyCode != Keys.RWin)
                 {
                     newKey = (uint)e.KeyCode;
-                    
                     string modStr = "";
                     if (e.Control) modStr += "Ctrl+";
                     if (e.Shift) modStr += "Shift+";
                     if (e.Alt) modStr += "Alt+";
-                    
                     newKeyName = modStr + e.KeyCode.ToString();
                     textBox.Text = newKeyName;
                 }
-                
-                e.Handled = true;
-                e.SuppressKeyPress = true;
+                e.Handled = true; e.SuppressKeyPress = true;
             };
-
             Button okButton = new Button();
             okButton.Text = isChineseUI ? "确定" : "OK";
             okButton.Location = new System.Drawing.Point(120, 110);
             okButton.Click += (s, e) => {
                 if (newKey != 0)
                 {
-                    // Unregister old hotkey
                     UnregisterHotKey(messageWindow.Handle, HOTKEY_ID);
-                    
-                    // Try to register new hotkey
                     if (RegisterHotKey(messageWindow.Handle, HOTKEY_ID, newModifiers, newKey))
                     {
-                        currentModifiers = newModifiers;
-                        currentKey = newKey;
-                        currentKeyName = newKeyName;
-                        SaveSettings();
-                        UpdateTrayText();
-                        
-                        MessageBox.Show(
-                            isChineseUI ? "快捷键已更改为: " + currentKeyName : "Hotkey changed to: " + currentKeyName,
-                            isChineseUI ? "成功" : "Success",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        currentModifiers = newModifiers; currentKey = newKey; currentKeyName = newKeyName;
+                        SaveSettings(); UpdateTrayText();
+                        MessageBox.Show(isChineseUI ? "快捷键已更改为: " + currentKeyName : "Hotkey changed to: " + currentKeyName, isChineseUI ? "成功" : "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         hotkeyForm.Close();
                     }
                     else
                     {
-                        MessageBox.Show(
-                            isChineseUI ? "注册快捷键失败: " + newKeyName + "\n可能已被占用" : "Failed to register " + newKeyName + "\nIt may be in use.",
-                            isChineseUI ? "错误" : "Error", 
-                            MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        
-                        // Re-register old hotkey
+                        MessageBox.Show(isChineseUI ? "注册快捷键失败: " + newKeyName + "\n可能已被占用" : "Failed to register " + newKeyName + "\nIt may be in use.", isChineseUI ? "错误" : "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         RegisterHotKey(messageWindow.Handle, HOTKEY_ID, currentModifiers, currentKey);
                     }
                 }
             };
             hotkeyForm.Controls.Add(okButton);
-
             Button cancelButton = new Button();
             cancelButton.Text = isChineseUI ? "取消" : "Cancel";
             cancelButton.Location = new System.Drawing.Point(210, 110);
             cancelButton.Click += (s, e) => hotkeyForm.Close();
             hotkeyForm.Controls.Add(cancelButton);
-
             hotkeyForm.ShowDialog();
         }
 
@@ -442,53 +339,36 @@ namespace ClipboardImageSaver
         {
             Form aboutForm = new Form();
             aboutForm.Text = isChineseUI ? "关于" : "About";
-            aboutForm.Width = 450;
-            aboutForm.Height = 350;
+            aboutForm.Width = 450; aboutForm.Height = 380;
             aboutForm.StartPosition = FormStartPosition.CenterScreen;
             aboutForm.FormBorderStyle = FormBorderStyle.FixedDialog;
-            aboutForm.MaximizeBox = false;
-            aboutForm.MinimizeBox = false;
-
+            aboutForm.MaximizeBox = false; aboutForm.MinimizeBox = false;
             RichTextBox richTextBox = new RichTextBox();
-            richTextBox.Location = new System.Drawing.Point(10, 10);
-            richTextBox.Width = 410;
-            richTextBox.Height = 280;
-            richTextBox.ReadOnly = true;
-            richTextBox.BorderStyle = BorderStyle.None;
-            richTextBox.DetectUrls = true;
+            richTextBox.Location = new System.Drawing.Point(10, 10); richTextBox.Width = 410; richTextBox.Height = 280;
+            richTextBox.ReadOnly = true; richTextBox.BorderStyle = BorderStyle.None; richTextBox.DetectUrls = true;
             aboutForm.Controls.Add(richTextBox);
-
+            string version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.1.0";
             if (isChineseUI)
             {
-                richTextBox.Text = "剪贴板图片保存工具 {{VERSION}}\n\n" +
-                    "当前快捷键: " + currentKeyName + "\n\n" +
-                    "在任意文件夹窗口按快捷键保存剪贴板图片\n\n" +
-                    "图片将保存到当前打开的文件夹\n" +
-                    "如果没有打开文件夹，则保存到桌面\n\n" +
-                    "右键托盘图标可更改快捷键\n\n" +
-                    "网站: https://sevencn.com\n" +
-                    "上传到: https://github.com/75110/openstar-ClipboardImageSaver";
+                richTextBox.Text = "剪贴板图片保存工具 v" + version + "\n\n" + "当前快捷键: " + currentKeyName + "\n\n" + "在任意文件夹窗口按快捷键保存剪贴板图片\n\n" + "图片将保存到当前打开的文件夹\n" + "如果没有打开文件夹，则保存到桌面\n\n" + "右键托盘图标可更改快捷键\n\n" + "网站: https://sevencn.com\n" + "上传到: https://github.com/75110/openstar-ClipboardImageSaver";
             }
             else
             {
-                richTextBox.Text = "Clipboard Image Saver {{VERSION}}\n\n" +
-                    "Current hotkey: " + currentKeyName + "\n\n" +
-                    "Press the hotkey in any folder to save clipboard image.\n\n" +
-                    "Images will be saved to the current active folder.\n" +
-                    "If no folder is active, saves to Desktop.\n\n" +
-                    "Right-click tray icon to change hotkey.\n\n" +
-                    "Website: https://sevencn.com\n" +
-                    "GitHub: https://github.com/75110/openstar-ClipboardImageSaver";
+                richTextBox.Text = "Clipboard Image Saver v" + version + "\n\n" + "Current hotkey: " + currentKeyName + "\n\n" + "Press the hotkey in any folder to save clipboard image.\n\n" + "Images will be saved to the current active folder.\n" + "If no folder is active, saves to Desktop.\n\n" + "Right-click tray icon to change hotkey.\n\n" + "Website: https://sevencn.com\n" + "GitHub: https://github.com/75110/openstar-ClipboardImageSaver";
             }
-
             Button closeButton = new Button();
             closeButton.Text = isChineseUI ? "关闭" : "Close";
             closeButton.Location = new System.Drawing.Point(190, 300);
             closeButton.Click += (s, e) => aboutForm.Close();
             aboutForm.Controls.Add(closeButton);
-
-            richTextBox.LinkClicked += (s, e) => System.Diagnostics.Process.Start(e.LinkText);
-
+            richTextBox.LinkClicked += (s, e) => {
+                try { System.Diagnostics.Process.Start(e.LinkText); }
+                catch (Exception ex)
+                {
+                    string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+                    File.AppendAllText(logPath, DateTime.Now.ToString() + " [ShowAbout LinkClicked]\n" + ex.ToString() + "\n\n");
+                }
+            };
             aboutForm.ShowDialog();
         }
 
@@ -501,29 +381,16 @@ namespace ClipboardImageSaver
             Application.Exit();
         }
 
-        // Message window to receive hotkey events
         private class HotkeyMessageWindow : NativeWindow
         {
             private const int WM_HOTKEY = 0x0312;
             private const int WM_CLIPBOARDUPDATE = 0x031D;
             private ClipboardImageSaverApp app;
-
-            public HotkeyMessageWindow(ClipboardImageSaverApp app)
-            {
-                this.app = app;
-                CreateHandle(new CreateParams());
-            }
-
+            public HotkeyMessageWindow(ClipboardImageSaverApp app) { this.app = app; CreateHandle(new CreateParams()); }
             protected override void WndProc(ref Message m)
             {
-                if (m.Msg == WM_HOTKEY)
-                {
-                    app.OnHotKeyPressed();
-                }
-                else if (m.Msg == WM_CLIPBOARDUPDATE)
-                {
-                    app.OnClipboardChanged();
-                }
+                if (m.Msg == WM_HOTKEY) { app.OnHotKeyPressed(); }
+                else if (m.Msg == WM_CLIPBOARDUPDATE) { app.OnClipboardChanged(); }
                 base.WndProc(ref m);
             }
         }
@@ -531,23 +398,11 @@ namespace ClipboardImageSaver
         private void ToggleMode()
         {
             autoMode = !autoMode;
-            if (autoMode)
-            {
-                AddClipboardFormatListener(messageWindow.Handle);
-            }
-            else
-            {
-                RemoveClipboardFormatListener(messageWindow.Handle);
-            }
+            if (autoMode) { AddClipboardFormatListener(messageWindow.Handle); }
+            else { RemoveClipboardFormatListener(messageWindow.Handle); }
             SaveSettings();
             UpdateContextMenu();
             UpdateTrayText();
-            trayIcon.ShowBalloonTip(
-                1500,
-                isChineseUI ? "模式已切换" : "Mode Switched",
-                isChineseUI ? (autoMode ? "当前为自动模式" : "当前为手动模式") : (autoMode ? "Auto mode enabled" : "Manual mode enabled"),
-                ToolTipIcon.Info
-            );
         }
 
         private void ChooseAutoSaveDir()
@@ -556,18 +411,11 @@ namespace ClipboardImageSaver
             {
                 dialog.Description = isChineseUI ? "选择自动保存路径" : "Choose auto save folder";
                 dialog.SelectedPath = autoSaveDir;
-                var result = dialog.ShowDialog();
-                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
+                if (dialog.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
                 {
                     autoSaveDir = dialog.SelectedPath;
                     SaveSettings();
                     UpdateContextMenu();
-                    trayIcon.ShowBalloonTip(
-                        1500,
-                        isChineseUI ? "已设置自动保存路径" : "Auto save folder set",
-                        dialog.SelectedPath,
-                        ToolTipIcon.Info
-                    );
                 }
             }
         }
