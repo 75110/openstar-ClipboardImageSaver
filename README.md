@@ -34,12 +34,6 @@
 - ✅ **超轻量**：体积仅 50KB
 - ✅ **免安装**：绿色软件，即开即用
 
-## 📞 支持与反馈
-
-- **网站**: [sevencn.com](https://sevencn.com)
-- **源码**: [GitHub](https://github.com/75110/openstar-ClipboardImageSaver)
-- **问题反馈**: 欢迎在 GitHub 提交 Issue
-
 ## 📄 开源协议
 
 本项目采用 MIT 协议开源，详情请查看 [LICENSE](LICENSE) 文件。
