@@ -61,17 +61,52 @@ namespace ClipboardImageSaver
 
         public void OnClipboardChanged()
         {
-            if (autoMode)
+            if (!autoMode) return;
+
+            Image image = null;
+            // 重试机制：剪贴板数据可能尚未完全就绪，需要稍等再读取
+            for (int i = 0; i < 8; i++)
             {
-                if (Clipboard.ContainsImage())
+                try
                 {
-                    Image image = Clipboard.GetImage();
-                    if (image == null) return;
-                    Directory.CreateDirectory(autoSaveDir);
-                    string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                    string filename = Path.Combine(autoSaveDir, "image_" + timestamp + ".png");
-                    image.Save(filename, ImageFormat.Png);
+                    if (Clipboard.ContainsImage())
+                    {
+                        image = Clipboard.GetImage();
+                        if (image != null) break;
+                    }
                 }
+                catch (Exception ex)
+                {
+                    string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+                    File.AppendAllText(logPath, $"{DateTime.Now} [OnClipboardChanged retry {i}]\n{ex}\n\n");
+                }
+                if (i < 7)
+                    System.Threading.Thread.Sleep(250);
+            }
+
+            if (image == null) return;
+
+            try
+            {
+                Directory.CreateDirectory(autoSaveDir);
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string filename = Path.Combine(autoSaveDir, "image_" + timestamp + ".png");
+
+                // 快速连续复制时防止文件名冲突
+                int counter = 1;
+                while (File.Exists(filename))
+                {
+                    filename = Path.Combine(autoSaveDir, "image_" + timestamp + "_" + counter + ".png");
+                    counter++;
+                }
+
+                image.Save(filename, ImageFormat.Png);
+                image.Dispose();
+            }
+            catch (Exception ex)
+            {
+                string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+                File.AppendAllText(logPath, $"{DateTime.Now} [OnClipboardChanged save]\n{ex}\n\n");
             }
         }
 
