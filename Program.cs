@@ -64,11 +64,18 @@ namespace ClipboardImageSaver
             if (!autoMode) return;
 
             Image image = null;
+            byte[] pngData = null;
             // 重试机制：剪贴板数据可能尚未完全就绪，需要稍等再读取
             for (int i = 0; i < 8; i++)
             {
                 try
                 {
+                    pngData = TryGetClipboardPng();
+                    if (pngData != null)
+                    {
+                        break;
+                    }
+
                     if (Clipboard.ContainsImage())
                     {
                         image = Clipboard.GetImage();
@@ -84,7 +91,7 @@ namespace ClipboardImageSaver
                     System.Threading.Thread.Sleep(250);
             }
 
-            if (image == null) return;
+            if (pngData == null && image == null) return;
 
             try
             {
@@ -100,13 +107,42 @@ namespace ClipboardImageSaver
                     counter++;
                 }
 
-                image.Save(filename, ImageFormat.Png);
-                image.Dispose();
+                if (pngData != null)
+                {
+                    File.WriteAllBytes(filename, pngData);
+                }
+                else
+                {
+                    image.Save(filename, ImageFormat.Png);
+                    image.Dispose();
+                }
             }
             catch (Exception ex)
             {
                 string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
                 File.AppendAllText(logPath, $"{DateTime.Now} [OnClipboardChanged save]\n{ex}\n\n");
+            }
+        }
+
+        private static byte[] TryGetClipboardPng()
+        {
+            var dataObject = Clipboard.GetDataObject();
+            if (dataObject == null || !dataObject.GetDataPresent("PNG", false)) return null;
+
+            object data = dataObject.GetData("PNG", false);
+            if (data is byte[] bytes && bytes.Length > 0)
+            {
+                return bytes;
+            }
+
+            var stream = data as Stream;
+            if (stream == null) return null;
+
+            using (stream)
+            using (var memoryStream = new MemoryStream())
+            {
+                stream.CopyTo(memoryStream);
+                return memoryStream.Length > 0 ? memoryStream.ToArray() : null;
             }
         }
 
@@ -207,11 +243,11 @@ namespace ClipboardImageSaver
             string version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.2.0";
             if (isChineseUI)
             {
-                richTextBox.Text = "剪贴板图片保存工具 v" + version + "\n\n" + "自动检测剪贴板中的图片并保存\n\n" + "图片将保存到设置的自动保存目录\n\n" + "右键托盘图标可设置保存路径\n\n" + "网站: https://sevencn.com\n" + "GitHub: https://github.com/75110/openstar-ClipboardImageSaver";
+                richTextBox.Text = "剪贴板图片保存工具 v" + version + "\n\n" + "自动检测剪贴板中的图片并保存\n\n" + "图片将保存到设置的自动保存目录\n\n" + "右键托盘图标可设置保存路径\n\n" + "网站: https://sevencn.com\n" + "GitHub: https://github.com/75110/wotty-ClipboardImageSaver";
             }
             else
             {
-                richTextBox.Text = "Clipboard Image Saver v" + version + "\n\n" + "Auto-detect and save clipboard images.\n\n" + "Images will be saved to the configured auto-save folder.\n\n" + "Right-click tray icon to configure save folder.\n\n" + "Website: https://sevencn.com\n" + "GitHub: https://github.com/75110/openstar-ClipboardImageSaver";
+                richTextBox.Text = "Clipboard Image Saver v" + version + "\n\n" + "Auto-detect and save clipboard images.\n\n" + "Images will be saved to the configured auto-save folder.\n\n" + "Right-click tray icon to configure save folder.\n\n" + "Website: https://sevencn.com\n" + "GitHub: https://github.com/75110/wotty-ClipboardImageSaver";
             }
             Button closeButton = new Button();
             closeButton.Text = isChineseUI ? "关闭" : "Close";
