@@ -243,11 +243,11 @@ namespace ClipboardImageSaver
             string version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.2.0";
             if (isChineseUI)
             {
-                richTextBox.Text = "剪贴板图片保存工具 v" + version + "\n\n" + "自动检测剪贴板中的图片并保存\n\n" + "图片将保存到设置的自动保存目录\n\n" + "右键托盘图标可设置保存路径\n\n" + "网站: https://sevencn.com\n" + "GitHub: https://github.com/75110/wotty-ClipboardImageSaver";
+                richTextBox.Text = "剪贴板图片保存工具 v" + version + "\n\n" + "自动检测剪贴板中的图片并保存\n\n" + "图片将保存到设置的自动保存目录\n\n" + "右键托盘图标可设置保存路径\n\n" + "网站: https://sevencn.com\n" + "GitHub: https://github.com/sevencnup/wotty-ClipboardImageSaver";
             }
             else
             {
-                richTextBox.Text = "Clipboard Image Saver v" + version + "\n\n" + "Auto-detect and save clipboard images.\n\n" + "Images will be saved to the configured auto-save folder.\n\n" + "Right-click tray icon to configure save folder.\n\n" + "Website: https://sevencn.com\n" + "GitHub: https://github.com/75110/wotty-ClipboardImageSaver";
+                richTextBox.Text = "Clipboard Image Saver v" + version + "\n\n" + "Auto-detect and save clipboard images.\n\n" + "Images will be saved to the configured auto-save folder.\n\n" + "Right-click tray icon to configure save folder.\n\n" + "Website: https://sevencn.com\n" + "GitHub: https://github.com/sevencnup/wotty-ClipboardImageSaver";
             }
             Button closeButton = new Button();
             closeButton.Text = isChineseUI ? "关闭" : "Close";
